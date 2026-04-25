@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lavender Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Quicksand:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --lav-deep:    #3b1f6e;
+      --lav-mid:     #6a3fa6;
+      --lav-soft:    #9b72d4;
+      --lav-light:   #c9aef0;
+      --lav-pale:    #e8d9fc;
+      --lav-ghost:   #f5eeff;
+      --accent-pink: #e07ff5;
+      --accent-blue: #a0c4ff;
+      --glow-main:   rgba(155, 114, 212, 0.7);
+      --glow-pink:   rgba(224, 127, 245, 0.6);
+      --glow-blue:   rgba(160, 196, 255, 0.5);
+      --text-bright: #f0e6ff;
+      --text-dim:    rgba(240, 230, 255, 0.5);
+    }
+
+    /* ── Custom Cursor ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; cursor: none; }
+
+    #cursor {
+      position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+      width: 18px; height: 18px;
+      border: 2px solid var(--accent-pink);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width .15s ease, height .15s ease, background .15s ease, border-color .15s ease;
+      box-shadow: 0 0 10px var(--glow-pink), 0 0 25px var(--glow-pink);
+    }
+    #cursor.hovered {
+      width: 38px; height: 38px;
+      background: rgba(224, 127, 245, 0.15);
+      border-color: var(--lav-light);
+      box-shadow: 0 0 18px var(--glow-main), 0 0 40px var(--glow-pink);
+    }
+    #cursor-dot {
+      position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+      width: 5px; height: 5px;
+      background: var(--text-bright);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .trail {
+      position: fixed; pointer-events: none; z-index: 9998;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--lav-soft);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      animation: trailFade .6s ease-out forwards;
+    }
+    @keyframes trailFade {
+      0%   { opacity: .7; transform: translate(-50%,-50%) scale(1); }
+      100% { opacity: 0;  transform: translate(-50%,-50%) scale(0); }
+    }
+
+    /* ── Page ──────────────────────────────────────────── */
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Quicksand', sans-serif;
+      background: radial-gradient(ellipse at 20% 30%, #2a0e52 0%, #1a0835 40%, #0d0520 100%);
+      overflow: hidden;
+    }
+
+    /* Floating orbs */
+    .orb {
+      position: fixed; border-radius: 50%; pointer-events: none; filter: blur(60px);
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .orb1 { width:320px; height:320px; background:rgba(106,63,166,.35); top:-80px; left:-80px; animation-duration:14s; }
+    .orb2 { width:250px; height:250px; background:rgba(224,127,245,.2); bottom:-60px; right:-60px; animation-duration:10s; animation-delay:-4s; }
+    .orb3 { width:180px; height:180px; background:rgba(160,196,255,.18); top:40%; left:60%; animation-duration:16s; animation-delay:-7s; }
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(40px,30px) scale(1.1); }
+    }
+
+    /* Stars */
+    .stars {
+      position: fixed; inset: 0; pointer-events: none;
+      background-image:
+        radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,.7) 0%, transparent 100%),
+        radial-gradient(1px 1px at 45% 65%, rgba(255,255,255,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 85%, rgba(255,255,255,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 35%, rgba(255,255,255,.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 5%  70%, rgba(255,255,255,.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,.4) 0%, transparent 100%);
+    }
+
+    /* ── Calculator Shell ──────────────────────────────── */
+    .calc-wrap {
+      position: relative; z-index: 10;
+      animation: floatIn .8s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes floatIn {
+      from { opacity:0; transform: translateY(40px) scale(.9); }
+      to   { opacity:1; transform: translateY(0)   scale(1);   }
+    }
+
+    .calculator {
+      width: 340px;
+      background: linear-gradient(145deg, rgba(50,20,90,.85), rgba(25,10,55,.92));
+      border: 1px solid rgba(155,114,212,.4);
+      border-radius: 28px;
+      padding: 28px 24px 24px;
+      box-shadow:
+        0 0 0 1px rgba(155,114,212,.15),
+        0 30px 80px rgba(0,0,0,.6),
+        0 0 60px rgba(106,63,166,.2),
+        inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter: blur(20px);
+    }
+
+    /* Shimmer border */
+    .calculator::before {
+      content: '';
+      position: absolute; inset: -1px; border-radius: 28px;
+      background: conic-gradient(from var(--angle), transparent 0%, var(--lav-soft) 10%, transparent 20%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      padding: 1px;
+      animation: spin 6s linear infinite;
+      opacity: .5;
+    }
+    @property --angle { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+    @keyframes spin { to { --angle: 360deg; } }
+
+    /* ── Display ───────────────────────────────────────── */
+    .display {
+      background: rgba(15, 5, 35, .75);
+      border: 1px solid rgba(155,114,212,.25);
+      border-radius: 16px;
+      padding: 18px 20px 14px;
+      margin-bottom: 22px;
+      min-height: 100px;
+      display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end;
+      position: relative; overflow: hidden;
+      box-shadow: inset 0 2px 20px rgba(0,0,0,.4), 0 0 20px rgba(106,63,166,.15);
+    }
+    .display::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(155,114,212,.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .expression {
+      font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 400;
+      color: var(--text-dim);
+      min-height: 18px; word-break: break-all; text-align: right;
+      letter-spacing: 1px;
+    }
+    .result {
+      font-family: 'Orbitron', monospace; font-size: 38px; font-weight: 700;
+      color: var(--text-bright);
+      letter-spacing: 2px; margin-top: 6px;
+      text-shadow: 0 0 20px var(--glow-main), 0 0 40px rgba(155,114,212,.4);
+      word-break: break-all; text-align: right;
+      transition: transform .08s ease;
+    }
+    .result.pulse { animation: resultPulse .2s ease; }
+    @keyframes resultPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── Grid ──────────────────────────────────────────── */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 11px;
+    }
+
+    /* ── Buttons ───────────────────────────────────────── */
+    button {
+      font-family: 'Orbitron', monospace; font-size: 15px; font-weight: 700;
+      height: 64px; border-radius: 16px; border: none;
+      position: relative; overflow: hidden;
+      transition: transform .1s ease, box-shadow .15s ease;
+      letter-spacing: 1px;
+    }
+    button::before {          /* ripple layer */
+      content: '';
+      position: absolute; inset: 0; border-radius: inherit;
+      background: radial-gradient(circle at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.25) 0%, transparent 70%);
+      opacity: 0; transition: opacity .3s ease;
+    }
+    button:active::before { opacity: 1; }
+    button:active { transform: scale(.94); }
+
+    /* Number / default */
+    .btn-num {
+      background: linear-gradient(145deg, rgba(70,35,120,.8), rgba(45,18,80,.9));
+      color: var(--lav-pale);
+      border: 1px solid rgba(155,114,212,.2);
+      box-shadow: 0 4px 14px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    .btn-num:hover {
+      background: linear-gradient(145deg, rgba(106,63,166,.9), rgba(70,35,120,.9));
+      box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 15px rgba(155,114,212,.35);
+      transform: translateY(-2px);
+    }
+
+    /* Operators */
+    .btn-op {
+      background: linear-gradient(145deg, rgba(130,60,180,.75), rgba(90,35,140,.85));
+      color: var(--lav-light);
+      border: 1px solid rgba(201,174,240,.25);
+      box-shadow: 0 4px 14px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.1);
+    }
+    .btn-op:hover {
+      background: linear-gradient(145deg, rgba(160,80,210,.9), rgba(120,50,170,.9));
+      box-shadow: 0 6px 24px rgba(0,0,0,.35), 0 0 18px var(--glow-main);
+      transform: translateY(-2px);
+    }
+
+    /* Special: AC, +/-, % */
+    .btn-fn {
+      background: linear-gradient(145deg, rgba(55,25,90,.8), rgba(35,12,65,.9));
+      color: var(--lav-light);
+      border: 1px solid rgba(155,114,212,.18);
+      box-shadow: 0 4px 14px rgba(0,0,0,.3);
+    }
+    .btn-fn:hover {
+      background: linear-gradient(145deg, rgba(80,40,120,.85), rgba(55,25,90,.9));
+      box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 14px rgba(155,114,212,.3);
+      transform: translateY(-2px);
+    }
+
+    /* Equals */
+    .btn-eq {
+      background: linear-gradient(145deg, var(--accent-pink), #b042d8);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.15);
+      box-shadow: 0 6px 20px rgba(224,127,245,.35), inset 0 1px 0 rgba(255,255,255,.2);
+      text-shadow: 0 0 10px rgba(255,255,255,.5);
+    }
+    .btn-eq:hover {
+      background: linear-gradient(145deg, #ec97ff, #c960ef);
+      box-shadow: 0 8px 30px rgba(224,127,245,.55), 0 0 25px var(--glow-pink);
+      transform: translateY(-3px);
+    }
+
+    /* Zero spans 2 cols */
+    .span2 { grid-column: span 2; border-radius: 30px; }
+
+    /* ── Particle canvas ─────────────────────────────────── */
+    #particles { position:fixed; inset:0; pointer-events:none; z-index:1; }
+  </style>
+</head>
+<body>
+
+<!-- Custom cursor -->
+<div id="cursor"></div>
+<div id="cursor-dot"></div>
+
+<!-- Background -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+<div class="stars"></div>
+<canvas id="particles"></canvas>
+
+<!-- Calculator -->
+<div class="calc-wrap">
+  <div class="calculator">
+    <div class="display">
+      <div class="expression" id="expression"></div>
+      <div class="result" id="result">0</div>
+    </div>
+
+    <div class="btn-grid">
+      <!-- Row 1 -->
+      <button class="btn-fn"  data-action="clear">AC</button>
+      <button class="btn-fn"  data-action="sign">+/-</button>
+      <button class="btn-fn"  data-action="percent">%</button>
+      <button class="btn-op"  data-action="op" data-val="÷">÷</button>
+
+      <!-- Row 2 -->
+      <button class="btn-num" data-action="num" data-val="7">7</button>
+      <button class="btn-num" data-action="num" data-val="8">8</button>
+      <button class="btn-num" data-action="num" data-val="9">9</button>
+      <button class="btn-op"  data-action="op" data-val="×">×</button>
+
+      <!-- Row 3 -->
+      <button class="btn-num" data-action="num" data-val="4">4</button>
+      <button class="btn-num" data-action="num" data-val="5">5</button>
+      <button class="btn-num" data-action="num" data-val="6">6</button>
+      <button class="btn-op"  data-action="op" data-val="−">−</button>
+
+      <!-- Row 4 -->
+      <button class="btn-num" data-action="num" data-val="1">1</button>
+      <button class="btn-num" data-action="num" data-val="2">2</button>
+      <button class="btn-num" data-action="num" data-val="3">3</button>
+      <button class="btn-op"  data-action="op" data-val="+">+</button>
+
+      <!-- Row 5 -->
+      <button class="btn-num span2" data-action="num" data-val="0">0</button>
+      <button class="btn-num" data-action="decimal">.</button>
+      <button class="btn-eq"  data-action="equals">=</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Cursor ─────────────────────────────── */
+  const cur = document.getElementById('cursor');
+  const dot = document.getElementById('cursor-dot');
+  let mx = -100, my = -100;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cur.style.left = mx + 'px'; cur.style.top = my + 'px';
+    dot.style.left = mx + 'px'; dot.style.top = my + 'px';
+    spawnTrail(mx, my);
+  });
+
+  document.querySelectorAll('button').forEach(b => {
+    b.addEventListener('mouseenter', () => cur.classList.add('hovered'));
+    b.addEventListener('mouseleave', () => cur.classList.remove('hovered'));
+  });
+
+  let lastTrail = 0;
+  function spawnTrail(x, y) {
+    const now = Date.now();
+    if (now - lastTrail < 40) return;
+    lastTrail = now;
+    const t = document.createElement('div');
+    t.className = 'trail';
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 620);
+  }
+
+  /* ── Floating Particles ─────────────────── */
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  canvas.width = innerWidth; canvas.height = innerHeight;
+  window.addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; });
+
+  const particles = Array.from({length: 55}, () => ({
+    x: Math.random() * innerWidth,
+    y: Math.random() * innerHeight,
+    r: Math.random() * 2.2 + .4,
+    vx: (Math.random() - .5) * .4,
+    vy: (Math.random() - .5) * .4,
+    alpha: Math.random() * .5 + .15,
+    hue: 260 + Math.random() * 80
+  }));
+
+  function animParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(animParticles);
+  }
+  animParticles();
+
+  /* ── Ripple on click ────────────────────── */
+  document.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const r = btn.getBoundingClientRect();
+      const rx = ((e.clientX - r.left) / r.width * 100).toFixed(1);
+      const ry = ((e.clientY - r.top)  / r.height * 100).toFixed(1);
+      btn.style.setProperty('--rx', rx + '%');
+      btn.style.setProperty('--ry', ry + '%');
+    });
+  });
+
+  /* ── Calculator Logic ───────────────────── */
+  let currentVal = '0';
+  let operator   = null;
+  let prevVal    = null;
+  let waitNext   = false;
+  let exprStr    = '';
+
+  const resultEl    = document.getElementById('result');
+  const expressionEl = document.getElementById('expression');
+
+  function updateDisplay(v) {
+    resultEl.textContent = v;
+    resultEl.classList.remove('pulse');
+    void resultEl.offsetWidth;
+    resultEl.classList.add('pulse');
+  }
+
+  function handleNum(val) {
+    if (waitNext) { currentVal = val; waitNext = false; }
+    else currentVal = currentVal === '0' ? val : currentVal + val;
+    if (currentVal.length > 12) currentVal = currentVal.slice(0, 12);
+    updateDisplay(currentVal);
+  }
+
+  function handleOp(op) {
+    if (operator && !waitNext) calculate();
+    prevVal = currentVal;
+    operator = op;
+    waitNext = true;
+    exprStr = prevVal + ' ' + op;
+    expressionEl.textContent = exprStr;
+  }
+
+  function calculate() {
+    if (operator === null || prevVal === null) return;
+    const a = parseFloat(prevVal), b = parseFloat(currentVal);
+    let res;
+    switch(operator) {
+      case '+': res = a + b; break;
+      case '−': res = a - b; break;
+      case '×': res = a * b; break;
+      case '÷': res = b !== 0 ? a / b : 'Error'; break;
+    }
+    exprStr = prevVal + ' ' + operator + ' ' + currentVal + ' =';
+    expressionEl.textContent = exprStr;
+    currentVal = res === 'Error' ? 'Error' : parseFloat(res.toFixed(10)).toString();
+    if (currentVal.length > 12) currentVal = parseFloat(res).toExponential(5);
+    operator = null; prevVal = null; waitNext = true;
+    updateDisplay(currentVal);
+  }
+
+  document.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const val    = btn.dataset.val;
+
+      if (action === 'num')     handleNum(val);
+      else if (action === 'op') handleOp(val);
+      else if (action === 'equals') calculate();
+      else if (action === 'clear') {
+        currentVal = '0'; operator = null; prevVal = null; waitNext = false; exprStr = '';
+        updateDisplay('0'); expressionEl.textContent = '';
+      }
+      else if (action === 'sign') {
+        if (currentVal !== '0') { currentVal = (parseFloat(currentVal) * -1).toString(); updateDisplay(currentVal); }
+      }
+      else if (action === 'percent') {
+        currentVal = (parseFloat(currentVal) / 100).toString(); updateDisplay(currentVal);
+      }
+      else if (action === 'decimal') {
+        if (waitNext) { currentVal = '0.'; waitNext = false; }
+        else if (!currentVal.includes('.')) currentVal += '.';
+        updateDisplay(currentVal);
+      }
+    });
+  });
+
+  /* ── Keyboard support ───────────────────── */
+  document.addEventListener('keydown', e => {
+    if ('0123456789'.includes(e.key)) handleNum(e.key);
+    else if (e.key === '+') handleOp('+');
+    else if (e.key === '-') handleOp('−');
+    else if (e.key === '*') handleOp('×');
+    else if (e.key === '/') { e.preventDefault(); handleOp('÷'); }
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Backspace') {
+      currentVal = currentVal.length > 1 ? currentVal.slice(0, -1) : '0';
+      updateDisplay(currentVal);
+    }
+    else if (e.key === 'Escape') {
+      currentVal = '0'; operator = null; prevVal = null; waitNext = false; exprStr = '';
+      updateDisplay('0'); expressionEl.textContent = '';
+    }
+    else if (e.key === '.') {
+      if (!currentVal.includes('.')) { currentVal += '.'; updateDisplay(currentVal); }
+    }
+  });
+</script>
+</body>
+</html>
